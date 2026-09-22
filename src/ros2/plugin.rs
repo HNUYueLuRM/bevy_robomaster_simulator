@@ -262,20 +262,44 @@ fn capture_rune(
     let pitch_deg = -rot.1.to_degrees();
     let roll_deg = rot.2.to_degrees();
 
-    vision_recv_pub.publish(r2r::hnurm_interfaces::msg::VisionRecvData {
+    // vision_recv_pub.publish(r2r::rm_interfaces::msg::VisionRecvData {
+    //     header: Header {
+    //         stamp: stamp.clone(),
+    //         frame_id: "gimbal_link".to_string(),
+    //     },
+    //     self_color: r2r::rm_interfaces::msg::SelfColor { data: 1 },
+    //     work_mode: r2r::rm_interfaces::msg::WorkMode { data: 0 },
+    //     // Publish the simulator's actual projectile speed (config.toml [projectile]
+    //     // speed) so the vision program's ballistic solver always matches the physics.
+    //     // The field is the RM BulletSpeed enum (u8), but the vision program interprets
+    //     // it directly as m/s, so passing the real speed keeps both sides consistent.
+    //     bullet_speed: r2r::rm_interfaces::msg::BulletSpeed {
+    //         data: sim_config.projectile.speed as u8,
+    //     },
+    //     roll: roll_deg,
+    //     pitch: pitch_deg,
+    //     yaw: yaw_deg,
+    //     vel_x: 0.0,
+    //     vel_y: 0.0,
+    //     vel_yaw: 0.0,
+    //     control_id: 0.0,
+    //     game_progress: 0.0,
+    //     stage_remain_time: 0.0,
+    //     current_hp: 0.0,
+    //     current_enemy_sentry_hp: 0.0,
+    //     current_enemy_base_hp: 0.0,
+    //     current_virtual_shield: 0.0,
+    //     current_base_hp: 0.0,
+    // });
+
+    vision_recv_pub.publish(r2r::rm_interfaces::msg::VisionReceiveData {
         header: Header {
             stamp: stamp.clone(),
             frame_id: "gimbal_link".to_string(),
         },
-        self_color: r2r::hnurm_interfaces::msg::SelfColor { data: 1 },
-        work_mode: r2r::hnurm_interfaces::msg::WorkMode { data: 0 },
-        // Publish the simulator's actual projectile speed (config.toml [projectile]
-        // speed) so the vision program's ballistic solver always matches the physics.
-        // The field is the RM BulletSpeed enum (u8), but the vision program interprets
-        // it directly as m/s, so passing the real speed keeps both sides consistent.
-        bullet_speed: r2r::hnurm_interfaces::msg::BulletSpeed {
-            data: sim_config.projectile.speed as u8,
-        },
+        self_color: 1,
+        work_mode: 0,
+        bullet_speed: sim_config.projectile.speed as u8,
         roll: roll_deg,
         pitch: pitch_deg,
         yaw: yaw_deg,
@@ -283,13 +307,6 @@ fn capture_rune(
         vel_y: 0.0,
         vel_yaw: 0.0,
         control_id: 0.0,
-        game_progress: 0.0,
-        stage_remain_time: 0.0,
-        current_hp: 0.0,
-        current_enemy_sentry_hp: 0.0,
-        current_enemy_base_hp: 0.0,
-        current_virtual_shield: 0.0,
-        current_base_hp: 0.0,
     });
 
     let transform_stamped = tf_tree! {
@@ -419,7 +436,7 @@ fn process_subscription(
     // TopicSubscriber 只保存最新消息。死区仅决定是否接受新的目标角，
     // 不能直接结束系统，否则限速云台只移动一帧便停止。
     if let Ok(Some(cmd)) = gimbal_cmd.try_recv() {
-        if cmd.target_state.data == 0 || cmd.target_distance == -1.0 {
+        if cmd.target_state == 0 || cmd.target_distance == -1.0 {
             *shoot_held = false;
             *target_angles = None;
             return;
@@ -427,7 +444,7 @@ fn process_subscription(
 
         // 开火建议独立处理，不受角度死区影响。视觉端会把 shoot=true 保持数帧
         // 以防最新值邮箱吞掉单帧脉冲；这里按上升沿触发，保证一个请求只出一弹。
-        if cmd.target_state.data == 2 {
+        if cmd.target_state == 2 {
             if !*shoot_held && fire_rate_limiter.allow() {
                 commands.queue(|w: &mut World| {
                     w.run_system_once(projectile_launch).unwrap();
