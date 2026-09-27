@@ -297,7 +297,7 @@ fn capture_rune(
             stamp: stamp.clone(),
             frame_id: "gimbal_link".to_string(),
         },
-        self_color: 1,
+        self_color: 0,
         work_mode: 0,
         bullet_speed: sim_config.projectile.speed as u8,
         roll: roll_deg,
